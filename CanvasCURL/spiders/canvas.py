@@ -27,9 +27,15 @@ class QuotesSpider(scrapy.Spider):
         yield from self.page_response(response, self.parse)
         page = response.url.split("/")[-2]
         j = json.loads(response.body_as_unicode())
-        count = 0
         for course in j:
             yield self.build_request(context=f"courses/{course['id']}/modules", callback=self.parse_course_modules)
+
+
+    def parse_course_modules(self, response):
+        base = response.url.split("?")[0]
+        j = json.loads(response.body_as_unicode())
+        for i in j:
+            print(f"{base}/{i['id']}/items")
 
     def page_response(self, response, callback):
         if response.headers[b'Link']:
@@ -38,12 +44,6 @@ class QuotesSpider(scrapy.Spider):
                                    str(response.headers[b'Link']), re.MULTILINE)[0]
             if next_page:
                 yield self.build_request(context='', callback=callback, url=next_page)
-
-    def parse_course_modules(self, response):
-        base = response.url.split("?")[0]
-        j = json.loads(response.body_as_unicode())
-        for i in j:
-            print(f"{base}/{i['id']}/items")
 
     # Optionally set the url argument to call that URL with `start_page` parameter instead
     def build_request(self, context, callback, meta=None, url=None):
