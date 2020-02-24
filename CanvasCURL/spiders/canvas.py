@@ -2,6 +2,7 @@ import codecs
 import json
 import os
 import re
+from copy import copy
 from pathlib import Path
 
 import requests
@@ -9,6 +10,16 @@ import scrapy
 
 
 reader = codecs.getreader("utf-8")
+
+def save(path, url):
+    path.mkdir(parents=True, exist_ok=True)
+    r = requests.get(url)
+    content = str(r.headers['Content-Disposition'])
+    file_name = re.findall(r"(?<=filename=\").*(?=\")", content.split(';')[1], re.MULTILINE)[0]
+    with open(path / file_name, 'wb') as dump:
+        dump.write(r.content)
+        dump.close()
+        print(path / file_name)
 
 class CanvasSpider(scrapy.Spider):
     name = "canvas"
@@ -26,33 +37,64 @@ class CanvasSpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse, headers=self.headers)
 
     def parse(self, response):
-        yield from self.page_response(response, self.parse)
         j = json.loads(response.body_as_unicode())
+        meta = response.copy().meta
         for course in j:
-            yield self.build_request(context=f"courses/{course['id']}/modules", callback=self.parse_course_modules,
-                                     meta={"course_name": course['name']})
+            meta = copy(meta)
+            meta['course_id'] = course['id']
+            meta['course_name'] = str(course['name']).strip()
+            # parse modules
+            yield from self.build_request(context=f"courses/{meta['course_id']}/modules",
+                                          callback=self.parse_course, meta=meta)
+            # # parse folders
+            yield from self.build_request(context=f"courses/{meta['course_id']}/folders",
+                                          callback=self.parse_folders, meta=meta)
+        yield from self.page_response(response, self.parse)
 
-    def parse_course_modules(self, response):
-        base = response.url.split("?")[0]
-        course = base.split("/")[6]
+    def parse_course(self, response):
         j = json.loads(response.body_as_unicode())
         for i in j:
-            meta = {
-                "module_name": i['name'],
-                "course_name": response.meta['course_name']
-            }
-            yield self.build_request(context=f"{course}/{i['id']}/items", callback=self.parse_module_items, meta=meta)
-        yield from self.page_response(response, self.parse_module_items)
+            if i:
+                meta = response.copy().meta
+                meta['folder_name'] = str(i['name']).strip()
+                yield from self.build_request(context=f"courses/{meta['course_id']}/modules/{i['id']}/items",
+                                              callback=self.parse_module_items, meta=meta)
+        yield from self.page_response(response, self.parse_course)
+
+    def parse_folders(self, response):
+        folders = json.loads(response.body_as_unicode())
+        for folder in folders:
+            meta = response.copy().meta
+            meta['folder_name'] = str(folder['full_name']).strip()
+            # parse files in folder
+            yield from self.build_request(context='', callback=self.parse_files, meta=meta,
+                                          url=folder['files_url'])
+            # parse folders in folder
+            yield from self.build_request(context='', callback=self.parse_folders, meta=meta,
+                                          url=folder['folders_url'])
+
+    def parse_files(self, response):
+        files = json.loads(response.body_as_unicode())
+        meta = response.copy().meta
+        path = Path(self.output_dir) / Path(meta['course_name']) / Path(meta['folder_name'])
+        for file in files:
+            save(path, file['url'])
 
     def parse_module_items(self, response):
-        pass
+        items = json.loads(response.body_as_unicode())
+        meta = response.copy().meta
+        for item in items:
+            if item['type'] == 'File':
+                yield from self.build_request(context='', callback=self.parse_download, meta=meta,
+                                              url=item['url'])
+        yield from self.page_response(response=response, callback=self.parse_module_items)
 
-    def download(self, response):
-        context = response.meta['path'] if response.meta['path'] else 'unknown_folder'
-        path = Path(self.output_dir) / context
+    def parse_download(self, response):
+        meta = response.copy().meta
+        path = Path(self.output_dir) / meta['course_name'] / meta['folder_name']
         path.mkdir(parents=True, exist_ok=True)
-        r = requests.get(json.loads(response)['url'])
-        print(r.headers['content-disposition'])
+        j = json.loads(response.body_as_unicode())
+        save(path, j['url'])
 
     def page_response(self, response, callback):
         if response.headers[b'Link']:
@@ -60,10 +102,11 @@ class CanvasSpider(scrapy.Spider):
             next_page = re.findall(r"(?<=; rel=\"current\",\<)\S*(?=\>\;)",
                                    str(response.headers[b'Link']), re.MULTILINE)[0]
             if next_page:
-                yield self.build_request(context='', callback=callback, url=next_page)
+                meta = response.copy().meta
+                yield from self.build_request(context='', callback=callback, url=next_page, meta=meta)
 
     # Optionally set the url argument to call that URL with `start_page` parameter instead
     def build_request(self, context, callback, meta=None, url=None):
         if not url:
             url = f"{self.base_url}/{context}?{self.start_page}"
-        return scrapy.Request(url=f"{url}", callback=callback, headers=self.headers, meta=meta)
+        yield scrapy.Request(url=f"{url}", callback=callback, headers=self.headers, meta=meta)
