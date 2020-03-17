@@ -1,5 +1,6 @@
 import codecs
 import json
+import logging
 import os
 import re
 from copy import copy
@@ -19,7 +20,7 @@ def save(path, url):
     with open(path / file_name, 'wb') as dump:
         dump.write(r.content)
         dump.close()
-        print(path / file_name)
+    logging.info(path / file_name)
 
 class CanvasSpider(scrapy.Spider):
     name = "canvas"
@@ -27,7 +28,7 @@ class CanvasSpider(scrapy.Spider):
     headers = {"Authorization": f" Bearer {token}"}
     base_url = 'https://canvas.bham.ac.uk/api/v1'
     start_page = 'page=1&per_page=10'
-    output_dir = './output'
+    output_dir = '/output'
 
     def start_requests(self):
         urls = [
@@ -78,7 +79,11 @@ class CanvasSpider(scrapy.Spider):
         meta = response.copy().meta
         path = Path(self.output_dir) / Path(meta['course_name']) / Path(meta['folder_name'])
         for file in files:
-            save(path, file['url'])
+            # save(path, file['url'])
+            yield {
+                    "path": path,
+                    "url": file['url']
+                  }
 
     def parse_module_items(self, response):
         items = json.loads(response.body_as_unicode())
@@ -92,9 +97,12 @@ class CanvasSpider(scrapy.Spider):
     def parse_download(self, response):
         meta = response.copy().meta
         path = Path(self.output_dir) / meta['course_name'] / meta['folder_name']
-        path.mkdir(parents=True, exist_ok=True)
         j = json.loads(response.body_as_unicode())
-        save(path, j['url'])
+        # save(path, j['url'])
+        yield {
+                "path": path,
+                "url": j['url']
+              }
 
     def page_response(self, response, callback):
         if response.headers[b'Link']:
