@@ -46,7 +46,7 @@ class CanvasSpider(scrapy.Spider):
             # parse modules
             yield from self.build_request(context=f"courses/{meta['course_id']}/modules",
                                           callback=self.parse_course, meta=meta)
-            # # parse folders
+            # parse folders
             yield from self.build_request(context=f"courses/{meta['course_id']}/folders",
                                           callback=self.parse_folders, meta=meta)
         yield from self.page_response(response, self.parse)
@@ -78,7 +78,7 @@ class CanvasSpider(scrapy.Spider):
         meta = response.copy().meta
         path = Path(self.output_dir) / Path(meta['course_name']) / Path(meta['folder_name'])
         for file in files:
-            save(path, file['url'])
+            yield {'course_name': meta['course_name'], 'folder_name': meta['folder_name'], 'path': str(path), 'url': str(file['url'])}
 
     def parse_module_items(self, response):
         items = json.loads(response.body_as_unicode())
@@ -94,7 +94,7 @@ class CanvasSpider(scrapy.Spider):
         path = Path(self.output_dir) / meta['course_name'] / meta['folder_name']
         path.mkdir(parents=True, exist_ok=True)
         j = json.loads(response.body_as_unicode())
-        save(path, j['url'])
+        yield {'course_name': meta['course_name'], 'folder_name': meta['folder_name'], 'path': str(path), 'url': str(j['url'])}
 
     def page_response(self, response, callback):
         if response.headers[b'Link']:
