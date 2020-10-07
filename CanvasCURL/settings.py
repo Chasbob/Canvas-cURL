@@ -23,11 +23,18 @@ ROBOTSTXT_OBEY = True
 
 FEEDS = {
     '%(name)s-%(time)s.json': {
-        'format': 'json',
-        'encoding': 'utf8',
-        'store_empty': False,
-        'fields': ['course_name', 'folder_name', 'path', 'url'],
-        'indent': 4,
+        'format':
+        'json',
+        'encoding':
+        'utf8',
+        'store_empty':
+        False,
+        'fields': [
+            'course_name', 'folder_name', 'display_name', 'safe_name', 'path',
+            'url'
+        ],
+        'indent':
+        4,
     },
 }
 

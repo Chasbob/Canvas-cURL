@@ -136,3 +136,4 @@ dmypy.json
 
 *.json
 *.html
+output/
