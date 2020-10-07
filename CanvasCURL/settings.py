@@ -30,7 +30,7 @@ FEEDS = {
         'store_empty':
         False,
         'fields': [
-            'course_name', 'folder_name', 'display_name', 'safe_name', 'path',
+            'course_name', 'folder_name', 'display_name', 'filename', 'path',
             'url'
         ],
         'indent':

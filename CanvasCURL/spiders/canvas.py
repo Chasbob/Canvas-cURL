@@ -11,18 +11,6 @@ import scrapy
 reader = codecs.getreader("utf-8")
 
 
-def save(path, url):
-    path.mkdir(parents=True, exist_ok=True)
-    r = requests.get(url)
-    content = str(r.headers['Content-Disposition'])
-    file_name = re.findall(r"(?<=filename=\").*(?=\")",
-                           content.split(';')[1], re.MULTILINE)[0]
-    with open(path / file_name, 'wb') as dump:
-        dump.write(r.content)
-        dump.close()
-        print(path / file_name)
-
-
 class CanvasSpider(scrapy.Spider):
     name = "canvas"
     token = os.environ['TOKEN']
@@ -94,13 +82,6 @@ class CanvasSpider(scrapy.Spider):
         for file in files:
             yield self.yield_file(file, meta['course_name'],
                                   meta['folder_name'])
-            # yield {
-            #     'course_name': meta['course_name'],
-            #     'folder_name': meta['folder_name'],
-            #     'display_name': file['display_name'],
-            #     'path': str(path / file['filename']),
-            #     'url': str(file['url'])
-            # }
 
     def parse_module_items(self, response):
         items = json.loads(response.body_as_unicode())
@@ -120,6 +101,7 @@ class CanvasSpider(scrapy.Spider):
             'course_name': course_name,
             'folder_name': folder_name,
             'display_name': file['display_name'],
+            'filename': file['filename'],
             'path': str(path),
             'url': str(file['url'])
         }
