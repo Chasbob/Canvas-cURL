@@ -26,7 +26,7 @@ class CanvasSpider(scrapy.Spider):
                                  callback=self.parse,
                                  headers=self.headers)
 
-    def parse(self, response):
+    def parse(self, response, **kwargs):
         j = json.loads(response.body_as_unicode())
         meta = response.copy().meta
         for course in j:
@@ -77,8 +77,6 @@ class CanvasSpider(scrapy.Spider):
     def parse_files(self, response):
         files = json.loads(response.body_as_unicode())
         meta = response.copy().meta
-        path = Path(self.output_prefix) / Path(meta['course_name']) / Path(
-            meta['folder_name'])
         for file in files:
             yield self.yield_file(file, meta['course_name'],
                                   meta['folder_name'])
@@ -92,8 +90,28 @@ class CanvasSpider(scrapy.Spider):
                                               callback=self.parse_file,
                                               meta=meta,
                                               url=item['url'])
+            elif item['type'] == 'Page':
+                yield from self.build_request(context='',
+                                              callback=self.parse_module_html,
+                                              meta=meta,
+                                              url=item['url'])
+
         yield from self.page_response(response=response,
                                       callback=self.parse_module_items)
+
+    def parse_module_html(self, response):
+        meta = response.copy().meta
+        j = json.loads(response.body_as_unicode())
+        a_selectors = scrapy.selector.Selector(text=j['body']).xpath('//a')
+        selector: scrapy.selector.Selector
+        for selector in a_selectors:
+            name = selector.xpath('text()').extract_first()
+            url = selector.xpath('@href').extract_first()
+            if url:
+                if str(url).startswith('/courses') or 'files' in url:
+                    yield self.yield_file(
+                        file={'display_name': name, 'filename': name, 'url': url},
+                        course_name=meta['course_name'], folder_name=meta['folder_name'])
 
     def yield_file(self, file, course_name, folder_name):
         path = Path(self.output_prefix) / course_name / folder_name
