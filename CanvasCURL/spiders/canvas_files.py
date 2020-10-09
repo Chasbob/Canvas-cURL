@@ -12,7 +12,7 @@ reader = codecs.getreader("utf-8")
 
 
 class CanvasSpider(scrapy.Spider):
-    name = "canvas"
+    name = "canvas_files"
     token = os.environ['TOKEN']
     headers = {"Authorization": f" Bearer {token}"}
     base_url = 'https://canvas.bham.ac.uk/api/v1'

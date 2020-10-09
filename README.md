@@ -11,3 +11,7 @@ poetry install
 ```bash
 poetry run scrapy crawl canvas
 ```
+
+## TODO
+
+- [ ] grap list of ics feeds
