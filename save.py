@@ -1,27 +1,29 @@
-import re
-import sys
-import os
 import json
+import sys
 from pathlib import Path
+
 import requests
 
 
 def save(item):
-    path = './output' / Path(item['path'])
-    url = item['url']
-    path.mkdir(parents=True, exist_ok=True)
-    file_name = item['display_name']
-    file = path / file_name
-    if not file.is_file():
-        try:
-            with open(path / file_name, 'wb') as file:
-                download(file, file_name, url)
-        except IOError as e:
-            if not (path / item['filename']).is_file():
-                with open(path / item['filename'], 'wb') as file:
-                    download(file, item['filename'], url)
-    else:
-        print(f"{file} exists!")
+    try:
+        path = './output' / Path(item['path'])
+        url = item['url']
+        path.mkdir(parents=True, exist_ok=True)
+        file_name = item['display_name']
+        file = path / file_name
+        if not file.is_file():
+            try:
+                with open(path / file_name, 'wb') as file:
+                    download(file, file_name, url)
+            except IOError as e:
+                if not (path / item['filename']).is_file():
+                    with open(path / item['filename'], 'wb') as file:
+                        download(file, item['filename'], url)
+        else:
+            print(f"{file} exists!")
+    except Exception as exception:
+        print(exception)
 
 
 def download(file, file_name, url):

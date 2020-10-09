@@ -105,13 +105,24 @@ class CanvasSpider(scrapy.Spider):
         a_selectors = scrapy.selector.Selector(text=j['body']).xpath('//a')
         selector: scrapy.selector.Selector
         for selector in a_selectors:
-            name = selector.xpath('text()').extract_first()
             url = selector.xpath('@href').extract_first()
             if url:
                 if str(url).startswith('/courses') or 'files' in url:
-                    yield self.yield_file(
-                        file={'display_name': name, 'filename': name, 'url': url},
-                        course_name=meta['course_name'], folder_name=meta['folder_name'])
+                    name = selector.xpath('@title').extract_first()
+                    # Some rubbish checks to make sure the file gets a name
+                    if not name:
+                        name = selector.xpath('text()').extract_first()
+                    if not name:
+                        name = re.sub('/', '_', url)
+                    if not name:
+                        print(str(selector.get()))
+                    yield self.yield_file(file={
+                        'display_name': name,
+                        'filename': name,
+                        'url': url
+                    },
+                                          course_name=meta['course_name'],
+                                          folder_name=meta['folder_name'])
 
     def yield_file(self, file, course_name, folder_name):
         path = Path(self.output_prefix) / course_name / folder_name
