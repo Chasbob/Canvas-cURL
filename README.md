@@ -4,7 +4,6 @@
 
 ```bash
 poetry install
-poetry run python -m pip install Scrapy
 ```
 
 ## Run
