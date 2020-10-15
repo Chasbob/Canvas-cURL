@@ -3,11 +3,12 @@ import sys
 from pathlib import Path
 
 import requests
+import fire
 
 
-def save(item):
+def save(item, prefix):
     try:
-        path = './output' / Path(item['path'])
+        path = prefix / Path(item['path'])
         url = item['url']
         path.mkdir(parents=True, exist_ok=True)
         file_name = item['display_name']
@@ -16,7 +17,7 @@ def save(item):
             try:
                 with open(path / file_name, 'wb') as file:
                     download(file, file_name, url)
-            except IOError as e:
+            except IOError:
                 if not (path / item['filename']).is_file():
                     with open(path / item['filename'], 'wb') as file:
                         download(file, item['filename'], url)
@@ -52,7 +53,10 @@ def gen_items(file: str):
         for i in items:
             yield i
 
+def main(items, prefix):
+    for item in gen_items(items):
+        save(item, prefix)
+
 
 if __name__ == "__main__":
-    for item in gen_items(sys.argv[len(sys.argv) - 1]):
-        save(item)
+    fire.Fire(main)
