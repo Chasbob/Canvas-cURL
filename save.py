@@ -29,7 +29,7 @@ def download(path, file_name, url, max_file_size):
     response: requests.Response = requests.get(url, stream=True)
     total = response.headers.get('content-length')
 
-    if total > max_file_size:
+    if int(total) > max_file_size:
         print(f'File too large!\tSkipping...')
         return
     print(f'Downloading {file_name}')
